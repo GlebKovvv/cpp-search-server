@@ -67,12 +67,6 @@ public:
         document_count_++;
     }
 
-    void ComputeIDF() {
-        for (const auto& [word, _] : inverted_index_) {
-            idf_values_[word] = ComputeIDF(word);
-        }
-    }
-
     vector<Document> FindTopDocuments(const string& raw_query) const {
         const auto query_words_pair = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query_words_pair);
@@ -91,7 +85,6 @@ private:
     unordered_set<string> stop_words_;
     int document_count_;
     unordered_map<int, unordered_map<string, double>> word_frequencies_;
-    unordered_map<string, double> idf_values_;
 
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
@@ -134,16 +127,13 @@ private:
         for (const string& word : query_words_pair.first) {
             auto it = inverted_index_.find(word);
             if (it != inverted_index_.end()) {
-                auto idf_it = idf_values_.find(word);
-                if (idf_it != idf_values_.end()) {
-                    double idf = idf_it->second;
-                    for (const int doc_id : it->second) {
-                        auto freq_it = word_frequencies_.find(doc_id);
-                        if (freq_it != word_frequencies_.end()) {
-                            auto word_freq_it = freq_it->second.find(word);
-                            if (word_freq_it != freq_it->second.end()) {
-                                doc_relevance[doc_id] += word_freq_it->second * idf;
-                            }
+                double idf = ComputeIDF(word);
+                for (const int doc_id : it->second) {
+                    auto freq_it = word_frequencies_.find(doc_id);
+                    if (freq_it != word_frequencies_.end()) {
+                        auto word_freq_it = freq_it->second.find(word);
+                        if (word_freq_it != freq_it->second.end()) {
+                            doc_relevance[doc_id] += word_freq_it->second * idf;
                         }
                     }
                 }
@@ -176,8 +166,6 @@ SearchServer CreateSearchServer() {
     for (int document_id = 0; document_id < document_count; ++document_id) {
         search_server.AddDocument(document_id, ReadLine());
     }
-    
-    search_server.ComputeIDF();
 
     return search_server;
 }
